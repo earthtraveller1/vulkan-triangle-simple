@@ -87,12 +87,16 @@ int main(void) {
             }
         }
 
+        free(queue_families);
+
         // If the device supports both operations then we can safely break.
         if (found_graphics_queue_family && found_present_queue_family) {
             physical_device = physical_devices[i];
             break;
         }
     }
+
+    free(physical_devices);
 
     // Now that we've selected the physical device, now we create the logical
     // device.
@@ -148,6 +152,12 @@ int main(void) {
 
     VkDevice device;
     assert(vkCreateDevice(physical_device, &device_info, NULL, &device) == VK_SUCCESS);
+
+    vkDestroyDevice(device, NULL);
+    vkDestroySurfaceKHR(instance, surface, NULL);
+    glfwDestroyWindow(window);
+    glfwTerminate();
+    vkDestroyInstance(instance, NULL);
 
     return 0;
 }
