@@ -28,7 +28,7 @@ If you wish to run with validation layers, you can do so easily, assuming they
 are installed.
 
 ```bash
-VK_INSTANCE_LAYERS=VK_LAYER_KHRONOS_validation ./main
+VK_LOADER_LAYERS_ENABLE="*validation" ./main
 ```
 
 As for other systems, I have no idea.
