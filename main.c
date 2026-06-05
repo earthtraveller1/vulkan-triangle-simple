@@ -7,6 +7,8 @@
 #include <GLFW/glfw3.h>
 
 int main(void) {
+    assert(glfwInit());
+
     // Find the instance extensions that are needed by GLFW
     uint32_t glfw_extension_count;
     const char **glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
@@ -29,7 +31,6 @@ int main(void) {
 
     // Then, we need to create the window.
 
-    assert(glfwInit());
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     // Resizing is a bit complicated so let's not worry about that lol
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -96,6 +97,9 @@ int main(void) {
         }
     }
 
+    // Clearly if we have yet to find a physical device your system probably 
+    // doesn't support Vulkan
+    assert(physical_device != VK_NULL_HANDLE);
     free(physical_devices);
 
     // Now that we've selected the physical device, now we create the logical
