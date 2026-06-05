@@ -69,7 +69,7 @@ int main(void) {
 
         bool found_graphics_queue_family = false, found_present_queue_family = false;
 
-        for (int j = 0; j < queue_family_count; j++) {
+        for (uint32_t j = 0; j < queue_family_count; j++) {
             // Check if the queue family has graphics capabilities
             if (queue_families[j].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 graphics_queue_family = j;
