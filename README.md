@@ -10,7 +10,7 @@ distro). Ensure that the Vulkan libraries and glslc are installed as well. Then,
 it is as simple as:
 
 ```bash
-make all
+./build.sh
 ```
 
 On other systems, I have no idea.
