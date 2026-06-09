@@ -1,7 +1,9 @@
 #include <assert.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -90,14 +92,34 @@ int main(void) {
 
         free(queue_families);
 
-        // If the device supports both operations then we can safely break.
-        if (found_graphics_queue_family && found_present_queue_family) {
+        // Because we will be using the swapchain, we also have to make sure
+        // that the swapchain extension is supported by the Vulkan device.
+
+        bool supports_swapchains = false;
+
+        uint32_t extension_count;
+        vkEnumerateDeviceExtensionProperties(physical_devices[0], NULL, &extension_count, NULL);
+
+        VkExtensionProperties *extensions = malloc(sizeof(VkExtensionProperties) * extension_count);
+        vkEnumerateDeviceExtensionProperties(physical_devices[0], NULL, &extension_count, extensions);
+
+        for (uint32_t j = 0; j < extension_count; j++) {
+            if (strcmp(extensions[j].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) {
+                supports_swapchains = true;
+                break; // We have only one device extension to check for anyways so we can break out early
+            }
+        }
+
+        free(extensions);
+
+        // If the device supports both operations and also the swapchain then we can safely break.
+        if (found_graphics_queue_family && found_present_queue_family && supports_swapchains) {
             physical_device = physical_devices[i];
             break;
         }
     }
 
-    // Clearly if we have yet to find a physical device your system probably 
+    // Clearly if we have yet to find a physical device your system probably
     // doesn't support Vulkan
     assert(physical_device != VK_NULL_HANDLE);
     free(physical_devices);
@@ -105,7 +127,7 @@ int main(void) {
     // Now that we've selected the physical device, now we create the logical
     // device.
 
-    const char* device_extensions[] = {
+    const char *device_extensions[] = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     };
 
@@ -161,8 +183,154 @@ int main(void) {
     vkGetDeviceQueue(device, graphics_queue_family, 0, &graphics_queue);
     vkGetDeviceQueue(device, present_queue_family, 0, &present_queue);
 
+    // SWAPCHAIN CREATION
+    // ========================================================================
+    // ========================================================================
+    // ========================================================================
 
+    // First we select the surface format
 
+    uint32_t surface_format_count;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &surface_format_count, NULL);
+
+    VkSurfaceFormatKHR *surface_formats = malloc(sizeof(VkSurfaceFormatKHR) * surface_format_count);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &surface_format_count, surface_formats);
+
+    // By default we just use the first surface format we see
+    VkSurfaceFormatKHR surface_format = surface_formats[0];
+
+    // But if we find the sRGB format we should use that
+    for (uint32_t i = 0; i < surface_format_count; i++) {
+        if (surface_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && surface_formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            surface_format = surface_formats[i];
+            break;
+        }
+    }
+
+    // We need to also select the swap extent
+    
+    VkSurfaceCapabilitiesKHR surface_capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities);
+
+    // By default, the one specified in the surface capabilities should be fine
+    // This is because apparently the driver would set it up for you
+    VkExtent2D swap_extent = surface_capabilities.currentExtent;
+
+    // But, in some situations, we might need to set it up ourselves, such as 
+    // in some HiDPI displays.
+    if (swap_extent.width == UINT32_MAX) {
+        // By obtaining it from GLFW, of course.
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+
+        swap_extent = (VkExtent2D) {
+            .width = width,
+            .height = height,
+        };
+
+        // We also must clamp them, of course.
+        if (swap_extent.width > surface_capabilities.maxImageExtent.width) {
+            swap_extent.width = surface_capabilities.maxImageExtent.width;
+        }
+        if (swap_extent.width < surface_capabilities.minImageExtent.width) {
+            swap_extent.width = surface_capabilities.minImageExtent.width;
+        }
+        if (swap_extent.height > surface_capabilities.maxImageExtent.height) {
+            swap_extent.height = surface_capabilities.maxImageExtent.height;
+        }
+        if (swap_extent.height < surface_capabilities.minImageExtent.height) {
+            swap_extent.height = surface_capabilities.minImageExtent.height;
+        }
+    }
+
+    // Finally, we need to determine the number of images in the swapchain.
+    // Ideally, it should be one more than the minimum number of images
+    // This is so that we don't have to wait on the driver to complete
+    // internal operations or whatever.
+    uint32_t image_count = surface_capabilities.minImageCount + 1;
+
+    // But we must also clamp it, of course.
+    if (image_count > surface_capabilities.maxImageCount) {
+        image_count = surface_capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR swapchain_info = {
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .pNext = NULL,
+        .flags = 0,
+        .surface = surface,
+        .minImageCount = image_count,
+        .imageFormat = surface_format.format,
+        .imageColorSpace = surface_format.colorSpace,
+        .imageExtent = swap_extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = NULL,
+        .preTransform = surface_capabilities.currentTransform,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, 
+        .presentMode = VK_PRESENT_MODE_FIFO_KHR, // Apparently this is always available
+        .clipped = VK_TRUE, // This is for clipping pixels that aren't visible.
+        .oldSwapchain = NULL,
+    };
+
+    uint32_t queue_families[] = { graphics_queue_family, present_queue_family };
+
+    // If the two queue families are different, then we need to set up sharing
+    if (graphics_queue_family != present_queue_family) {
+        swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchain_info.queueFamilyIndexCount = 2;
+        swapchain_info.pQueueFamilyIndices = queue_families;
+    }
+
+    VkSwapchainKHR swapchain;
+    assert(vkCreateSwapchainKHR(device, &swapchain_info, NULL, &swapchain) == VK_SUCCESS);
+
+    // Of course we must also get the images
+
+    uint32_t swapchain_image_count;
+    vkGetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, NULL);
+
+    VkImage* swapchain_images = malloc(sizeof(VkImage) * swapchain_image_count);
+    vkGetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, swapchain_images);
+
+    // And not to forget the image views
+    
+    // There is the same number of image views as images so we need only one counter
+    VkImageView* swapchain_image_views = malloc(sizeof(VkImageView) * swapchain_image_count);
+    for (uint32_t i = 0; i < swapchain_image_count; i++) {
+        VkImageViewCreateInfo info = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0,
+            .image = swapchain_images[i],
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = surface_format.format,
+            .components =  {
+                .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .a = VK_COMPONENT_SWIZZLE_IDENTITY,
+            },
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            }
+        };
+
+        assert(vkCreateImageView(device, &info, NULL, swapchain_image_views + i) == VK_SUCCESS);
+    }
+
+    for (uint32_t i = 0; i < swapchain_image_count; i++) {
+        vkDestroyImageView(device, swapchain_image_views[i], NULL);
+    }
+    free(swapchain_image_views);
+    free(swapchain_images);
+    vkDestroySwapchainKHR(device, swapchain, NULL);
     vkDestroyDevice(device, NULL);
     vkDestroySurfaceKHR(instance, surface, NULL);
     glfwDestroyWindow(window);
