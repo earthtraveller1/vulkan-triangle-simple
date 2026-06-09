@@ -157,6 +157,12 @@ int main(void) {
     VkDevice device;
     assert(vkCreateDevice(physical_device, &device_info, NULL, &device) == VK_SUCCESS);
 
+    VkQueue graphics_queue, present_queue;
+    vkGetDeviceQueue(device, graphics_queue_family, 0, &graphics_queue);
+    vkGetDeviceQueue(device, present_queue_family, 0, &present_queue);
+
+
+
     vkDestroyDevice(device, NULL);
     vkDestroySurfaceKHR(instance, surface, NULL);
     glfwDestroyWindow(window);
