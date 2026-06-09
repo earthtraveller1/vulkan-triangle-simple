@@ -28,6 +28,6 @@ if (!(Test-Path -Path "compile_commands.json"))
         }
     )
 
-    $command_json = $command | ConvertTo-Json
+    $command_json = $command | ConvertTo-Json -AsArray
     Set-Content -Path "compile_commands.json" -Value $command_json
 }
