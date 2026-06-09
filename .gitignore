@@ -1,3 +1,4 @@
 main
+main.exe
 *.spirv.c
 compile_commands.json
