@@ -14,7 +14,7 @@ $CFLAGS = "-Wall", "-Wpedantic", "-Wextra"
 $INCLUDES = "-I$env:VULKAN_SDK/Include", "-Ivendor/glfw/include"
 $LIBS = "$env:VULKAN_SDK/Lib/vulkan-1.lib", "vendor/glfw/src/glfw3.lib", "-luser32", "-lshell32", "-lgdi32" 
 
-& $CC $CFLAGS $INCLUDES -o main main.c $LIBS
+& $CC $CFLAGS $INCLUDES -o main.exe main.c $LIBS
 
 # If the compilation database doesn't exist, we generate it, of course
 # This is of course so that clangd works properly
@@ -23,7 +23,7 @@ if (!(Test-Path -Path "compile_commands.json"))
     $command = @(
         [PSCustomObject]@{
             directory = "$PWD"
-            arguments = @($CC) + $CFLAGS + $INCLUDES + @("-o", "main", "main.c") + $LIBS
+            arguments = @($CC) + $CFLAGS + $INCLUDES + @("-o", "main.exe", "main.c") + $LIBS
             file = "main.c"
         }
     )
