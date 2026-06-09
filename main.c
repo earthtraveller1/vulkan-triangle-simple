@@ -1,7 +1,7 @@
 #include <assert.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -61,6 +61,10 @@ int main(void) {
     VkPhysicalDevice physical_device = NULL;
 
     for (uint32_t i = 0; i < physical_device_count; i++) {
+        VkPhysicalDeviceProperties device_properties;
+        vkGetPhysicalDeviceProperties(physical_devices[i], &device_properties);
+
+        printf("[INFO]: Found %s\n", device_properties.deviceName);
         // Obviously allocating memory every iteration is not optimal
         // but I mean who cares?
 
@@ -77,6 +81,7 @@ int main(void) {
             if (queue_families[j].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 graphics_queue_family = j;
                 found_graphics_queue_family = true;
+                printf("\tSupports graphics queue family: %d\n", j);
             }
 
             VkBool32 supports_present;
@@ -87,6 +92,7 @@ int main(void) {
             if (supports_present) {
                 present_queue_family = j;
                 found_present_queue_family = true;
+                printf("\tSupports present queue family: %d\n", j);
             }
         }
 
@@ -98,14 +104,15 @@ int main(void) {
         bool supports_swapchains = false;
 
         uint32_t extension_count;
-        vkEnumerateDeviceExtensionProperties(physical_devices[0], NULL, &extension_count, NULL);
+        vkEnumerateDeviceExtensionProperties(physical_devices[i], NULL, &extension_count, NULL);
 
         VkExtensionProperties *extensions = malloc(sizeof(VkExtensionProperties) * extension_count);
-        vkEnumerateDeviceExtensionProperties(physical_devices[0], NULL, &extension_count, extensions);
+        vkEnumerateDeviceExtensionProperties(physical_devices[i], NULL, &extension_count, extensions);
 
         for (uint32_t j = 0; j < extension_count; j++) {
             if (strcmp(extensions[j].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) {
                 supports_swapchains = true;
+                printf("\tSupports swapchains!\n");
                 break; // We have only one device extension to check for anyways so we can break out early
             }
         }
@@ -208,7 +215,7 @@ int main(void) {
     }
 
     // We need to also select the swap extent
-    
+
     VkSurfaceCapabilitiesKHR surface_capabilities;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities);
 
@@ -216,14 +223,14 @@ int main(void) {
     // This is because apparently the driver would set it up for you
     VkExtent2D swap_extent = surface_capabilities.currentExtent;
 
-    // But, in some situations, we might need to set it up ourselves, such as 
+    // But, in some situations, we might need to set it up ourselves, such as
     // in some HiDPI displays.
     if (swap_extent.width == UINT32_MAX) {
         // By obtaining it from GLFW, of course.
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
 
-        swap_extent = (VkExtent2D) {
+        swap_extent = (VkExtent2D){
             .width = width,
             .height = height,
         };
@@ -269,13 +276,13 @@ int main(void) {
         .queueFamilyIndexCount = 0,
         .pQueueFamilyIndices = NULL,
         .preTransform = surface_capabilities.currentTransform,
-        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, 
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         .presentMode = VK_PRESENT_MODE_FIFO_KHR, // Apparently this is always available
-        .clipped = VK_TRUE, // This is for clipping pixels that aren't visible.
+        .clipped = VK_TRUE,                      // This is for clipping pixels that aren't visible.
         .oldSwapchain = NULL,
     };
 
-    uint32_t queue_families[] = { graphics_queue_family, present_queue_family };
+    uint32_t queue_families[] = {graphics_queue_family, present_queue_family};
 
     // If the two queue families are different, then we need to set up sharing
     if (graphics_queue_family != present_queue_family) {
@@ -292,13 +299,13 @@ int main(void) {
     uint32_t swapchain_image_count;
     vkGetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, NULL);
 
-    VkImage* swapchain_images = malloc(sizeof(VkImage) * swapchain_image_count);
+    VkImage *swapchain_images = malloc(sizeof(VkImage) * swapchain_image_count);
     vkGetSwapchainImagesKHR(device, swapchain, &swapchain_image_count, swapchain_images);
 
     // And not to forget the image views
-    
+
     // There is the same number of image views as images so we need only one counter
-    VkImageView* swapchain_image_views = malloc(sizeof(VkImageView) * swapchain_image_count);
+    VkImageView *swapchain_image_views = malloc(sizeof(VkImageView) * swapchain_image_count);
     for (uint32_t i = 0; i < swapchain_image_count; i++) {
         VkImageViewCreateInfo info = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -307,7 +314,7 @@ int main(void) {
             .image = swapchain_images[i],
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
             .format = surface_format.format,
-            .components =  {
+            .components = {
                 .r = VK_COMPONENT_SWIZZLE_IDENTITY,
                 .g = VK_COMPONENT_SWIZZLE_IDENTITY,
                 .b = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -319,8 +326,7 @@ int main(void) {
                 .levelCount = 1,
                 .baseArrayLayer = 0,
                 .layerCount = 1,
-            }
-        };
+            }};
 
         assert(vkCreateImageView(device, &info, NULL, swapchain_image_views + i) == VK_SUCCESS);
     }
