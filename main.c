@@ -78,7 +78,7 @@ int main(void) {
 
         for (uint32_t j = 0; j < queue_family_count; j++) {
             // Check if the queue family has graphics capabilities
-            if (queue_families[j].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            if (queue_families[j].queueFlags & VK_QUEUE_GRAPHICS_BIT && !found_graphics_queue_family) {
                 graphics_queue_family = j;
                 found_graphics_queue_family = true;
                 printf("\tSupports graphics queue family: %d\n", j);
@@ -89,7 +89,7 @@ int main(void) {
 
             // Check if the queue family has presentation capabilities specifically
             // for our surface.
-            if (supports_present) {
+            if (supports_present && !found_present_queue_family) {
                 present_queue_family = j;
                 found_present_queue_family = true;
                 printf("\tSupports present queue family: %d\n", j);
